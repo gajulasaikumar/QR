@@ -300,7 +300,7 @@ else:
     </style>
     """, unsafe_allow_html=True)
 
-    st.markdown('<div class="main-header"><h1>Smart Document Assistant</h1><p>Upload, Summarize, Ask Questions & Download</p></div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-header"><h1>Smart Document Assistant</h1><p>Upload, Summarize, Ask Questions & QR Generator</p></div>', unsafe_allow_html=True)
 
     def create_download_package(documents, summaries):
         zip_buffer = io.BytesIO()
@@ -516,5 +516,3 @@ else:
                     st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info("Upload PDF, TXT, or DOCX documents for package download.")
-
-    st.markdown('---\n<div style="text-align: center; color: #666;"><p>Smart Document Assistant | Built with Streamlit & Custom AI Models</p></div>', unsafe_allow_html=True)
