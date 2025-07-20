@@ -504,7 +504,7 @@ else:
                     st.markdown("---")
                     st.success("Link and QR Code Generated!")
                     
-                    st.markdown('<div class="qr-section">', unsafe_allow_html=True)
+                    # st.markdown('<div class="qr-section">', unsafe_allow_html=True)
                     qr_img = st.session_state.sharable_qr_pkg
                     img_buffer = io.BytesIO()
                     qr_img.save(img_buffer, format='PNG')
