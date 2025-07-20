@@ -1,5 +1,5 @@
 streamlit
-streamlit
+python-docx
 qrcode[pil]
 Pillow
 langchain
