@@ -1,0 +1,10 @@
+streamlit
+streamlit
+qrcode[pil]
+Pillow
+langchain
+sentence-transformers
+openai
+numpy
+torch
+python-dotenv
