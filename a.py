@@ -458,7 +458,7 @@ else:
                 
                 if "rag_system" in st.session_state:
                     question = st.text_area("Your Question:", height=100, placeholder="Type your question here...", key="rag_question")
-                    if st.button("Get Answer", type="primary", key="rag_button"):
+                    if st.button("Submit", type="primary", key="rag_button"):
                         if question:
                             with st.spinner("Thinking..."):
                                 answer = st.session_state.rag_system.query(question)
