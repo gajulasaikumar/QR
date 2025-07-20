@@ -1,0 +1,13 @@
+streamlit
+streamlit
+qrcode[pil]
+Pillow
+langchain
+sentence-transformers
+openai
+numpy
+torch
+python-dotenv
+langchain-community  # Add this
+pypdf                # Add this for PDF loading
+unstructured         # Add this for DOCX loading
