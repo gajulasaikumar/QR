@@ -14,11 +14,126 @@ import zipfile
 import base64
 import hashlib
 import time
+import smtplib
+import re
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.image import MIMEImage
 
 from sentence_transformers import SentenceTransformer
 from sentence_transformers.util import cos_sim
 from openai import OpenAI
 import numpy as np
+
+# --- EMAIL CONFIGURATION ---
+# You'll need to set these environment variables or configure them
+SMTP_SERVER = "smtp.gmail.com"
+SMTP_PORT = 587
+SENDER_EMAIL =  "lucysai2801@gmail.com"  # Set your email
+SENDER_PASSWORD ="aftc icbf rsdl iwyy"  # Use App Password
+
+def validate_email(email):
+    """Validate email format"""
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(pattern, email) is not None
+
+def send_qr_email(recipient_email, qr_image, download_link, package_filename):
+    """Send QR code and download link via email"""
+    try:
+        # Create message
+        msg = MIMEMultipart('related')
+        msg['From'] = SENDER_EMAIL
+        msg['To'] = recipient_email
+        msg['Subject'] = f"Document Package Ready - {package_filename}"
+# Instead of: f"Your Document Package: {package_filename}"
+        # Add after creating msg object:
+        # msg['Reply-To'] = SENDER_EMAIL
+        # msg['Return-Path'] = SENDER_EMAIL
+        # msg['Message-ID'] = f"<{int(time.time())}-{hashlib.md5(recipient_email.encode()).hexdigest()[:8]}@gmail.com>"
+        # msg['X-Mailer'] = "Smart Document Assistant v1.0"
+        
+        # Create HTML body
+        html_body = f"""
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Document Package Ready</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    
+            <h2 style="color: #667eea;">📄 Your Document Package is Ready!</h2>
+            <p>Hello!</p>
+            <p>Your document package <strong>{package_filename}</strong> has been generated and is ready for download.</p>
+            
+            <h3>📱 Two ways to download:</h3>
+            <ol>
+                <li><strong>Scan the QR Code below:</strong></li>
+                <div style="text-align: center; margin: 20px;">
+                    <img src="cid:qr_code" style="border: 2px solid #667eea; border-radius: 10px; max-width: 250px;">
+                </div>
+                
+                <li><strong>Or click this direct link:</strong></li>
+                <p style="background: #f0f8ff; padding: 15px; border-radius: 5px; word-break: break-all;">
+                    <a href="{download_link}" style="color: #667eea; text-decoration: none;">{download_link}</a>
+                </p>
+            </ol>
+            
+            <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 15px; margin: 20px 0;">
+                <strong>⏰ Important:</strong> This download link will expire in 24 hours for security reasons.
+            </div>
+            
+            <p>If you have any issues downloading your files, please contact support.</p>
+            
+            <hr style="margin: 30px 0;">
+            <p style="color: #666; font-size: 12px;">
+                This email was sent by Smart Document Assistant.<br>
+                Generated on {datetime.now().strftime('%Y-%m-%d at %H:%M:%S')}
+            </p>
+        </body>
+        </html>
+        """
+        # Add before msg.attach(MIMEText(html_body, 'html')):
+        text_body = f"""
+        Document Package Ready!
+
+        Your document package {package_filename} is ready for download.
+
+        Download Link: {download_link}
+
+        This link will expire in 24 hours for security.
+
+        --
+        Smart Document Assistant
+        Generated on {datetime.now().strftime('%Y-%m-%d at %H:%M:%S')}
+        """
+
+        msg.attach(MIMEText(text_body, 'plain'))
+        # Attach HTML body
+        msg.attach(MIMEText(html_body, 'html'))
+        
+        # Convert QR code to bytes and attach
+        qr_buffer = io.BytesIO()
+        qr_image.save(qr_buffer, format='PNG')
+        qr_buffer.seek(0)
+        
+        qr_attachment = MIMEImage(qr_buffer.read())
+        qr_attachment.add_header('Content-ID', '<qr_code>')
+        qr_attachment.add_header('Content-Disposition', 'inline', filename='qr_code.png')
+        msg.attach(qr_attachment)
+        
+        # Send email
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.starttls()
+        server.login(SENDER_EMAIL, SENDER_PASSWORD)
+        text = msg.as_string()
+        server.sendmail(SENDER_EMAIL, recipient_email, text)
+        server.quit()
+        
+        return True, "Email sent successfully!"
+        
+    except Exception as e:
+        return False, f"Failed to send email: {str(e)}"
 
 # --- QR SHARING & STORAGE SETUP (Unified) ---
 
@@ -297,10 +412,13 @@ else:
         .summary-card { background: white; padding: 1.5rem; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin: 1rem 0; border-left: 4px solid #667eea; }
         .qr-section { text-align: center; background: #f0f8ff; padding: 2rem; border-radius: 10px; margin: 1rem 0; }
         .file-status { background: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px; padding: 0.5rem; margin: 0.25rem 0; }
+        .email-section { background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 10px; padding: 1.5rem; margin: 1rem 0; }
+        .success-message { background: #d1f2eb; border: 1px solid #7dcea0; border-radius: 5px; padding: 1rem; margin: 1rem 0; color: #0c5460; }
+        .error-message { background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 5px; padding: 1rem; margin: 1rem 0; color: #721c24; }
     </style>
     """, unsafe_allow_html=True)
 
-    st.markdown('<div class="main-header"><h1>Smart Document Assistant</h1><p>Upload, Summarize, Ask Questions & QR Generator</p></div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-header"><h1>Smart Document Assistant</h1><p>Upload, Summarize, Ask Questions & Share via Email</p></div>', unsafe_allow_html=True)
 
     def create_download_package(documents, summaries):
         zip_buffer = io.BytesIO()
@@ -386,7 +504,6 @@ else:
                     progress_bar.progress((i + 1) / len(uploaded_files_for_processing))
                 
                 ai_processed_count = sum(1 for doc in st.session_state.processed_docs if doc['text'])
-                # st.success(f"Processed {ai_processed_count} documents for AI features. {len(st.session_state.processed_docs) - ai_processed_count} files stored for sharing only (if any failed text extraction).")
         
         st.subheader("Processed Documents")
         if st.session_state.processed_docs:
@@ -401,8 +518,7 @@ else:
         else:
             st.info("No supported documents uploaded for AI processing.")
 
-
-        tab1, tab2, tab3 = st.tabs(["📊 Summaries", "❓ Q&A", "📲 QR Generator"])
+        tab1, tab2, tab3 = st.tabs(["📊 Summaries", "❓ Q&A", "📲 QR Generator & Email Share"])
         
         with tab1:
             st.subheader("Document Summaries")
@@ -452,13 +568,12 @@ else:
                             splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
                             all_chunks = [chunk for text in st.session_state.all_texts for chunk in splitter.split_text(text)]
                             st.session_state.rag_system.add_docs(all_chunks)
-                            # st.success(f"RAG system is ready! Indexed {len(all_chunks)} chunks.")
                         except Exception as e:
                             st.error(f"Error setting up RAG: {str(e)}")
                 
                 if "rag_system" in st.session_state:
                     question = st.text_area("Your Question:", height=100, placeholder="Type your question here...", key="rag_question")
-                    if st.button("Submit", type="primary", key="rag_button"):
+                    if st.button("Get Answer", type="primary", key="rag_button"):
                         if question:
                             with st.spinner("Thinking..."):
                                 answer = st.session_state.rag_system.query(question)
@@ -474,14 +589,14 @@ else:
                 st.info("Upload PDF, TXT, or DOCX documents first for Q&A.")
 
         with tab3:
-            st.subheader("Download Processed Package with QR Code")
-            st.markdown("Download originals + summaries. Link valid for 24 hours.")
+            st.subheader("Download Package & Email Sharing")
+            st.markdown("Download originals + summaries. Links valid for 24 hours.")
 
-            if st.session_state.processed_docs and any(doc['text'] for doc in st.session_state.processed_docs): # Ensure there are docs with content
+            if st.session_state.processed_docs and any(doc['text'] for doc in st.session_state.processed_docs):
                 summaries_to_include = st.session_state.get('summaries', [])
                 package_filename = f"documents_package_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
                 download_data = create_download_package(
-                    [doc for doc in st.session_state.processed_docs if doc['text']], # Only include AI processed docs
+                    [doc for doc in st.session_state.processed_docs if doc['text']],
                     summaries_to_include
                 )
 
@@ -492,8 +607,7 @@ else:
                     st.write(f"Package Size: {format_file_size(len(download_data))}")
 
                 with col2_pkg:
-                    st.markdown("#### For Another Device use QR Code")
-                    # if st.button("Generate Sharable QR Code (Package)", use_container_width=True, key="generate_pkg_qr"):
+                    st.markdown("#### For Another Device")
                     with st.spinner("Generating secure link..."):
                         file_id = save_document_package_for_sharing(download_data, package_filename)
                         app_url = "https://koqndcvr7kfjrnroznzfws.streamlit.app" # Replace with your deployed app URL
@@ -504,7 +618,7 @@ else:
                     st.markdown("---")
                     st.success("Link and QR Code Generated!")
                     
-                    # st.markdown('<div class="qr-section">', unsafe_allow_html=True)
+                    st.markdown('<div class="qr-section">', unsafe_allow_html=True)
                     qr_img = st.session_state.sharable_qr_pkg
                     img_buffer = io.BytesIO()
                     qr_img.save(img_buffer, format='PNG')
@@ -514,5 +628,61 @@ else:
                     st.code(st.session_state.sharable_link_pkg, language=None)
                     st.caption("Scan QR or use link to download.")
                     st.markdown('</div>', unsafe_allow_html=True)
+                    
+                    # Email Sharing Section
+                    st.markdown("---")
+                    st.markdown('<div class="email-section">', unsafe_allow_html=True)
+                    st.markdown("### 📧 Share via Email")
+                    st.markdown("Send the QR code and download link directly to an email address:")
+                    
+                    col_email1, col_email2 = st.columns([3, 1])
+                    
+                    with col_email1:
+                        recipient_email = st.text_input(
+                            "Recipient Email Address:",
+                            placeholder="example@gmail.com",
+                            key="email_input",
+                            help="Enter a valid email address to receive the QR code and download link"
+                        )
+                    
+                    with col_email2:
+                        st.markdown("<br>", unsafe_allow_html=True)  # Add spacing
+                        send_email_btn = st.button(
+                            "📧 Send Email",
+                            type="primary",
+                            use_container_width=True,
+                            key="send_email_btn"
+                        )
+                    
+                    # Email validation and sending
+                    if send_email_btn:
+                        if not recipient_email:
+                            st.error("❌ Please enter an email address.")
+                        elif not validate_email(recipient_email):
+                            st.error("❌ Please enter a valid email address.")
+                        else:
+                            # Check if email configuration is set up
+                            if SENDER_EMAIL == "your-email@gmail.com" or SENDER_PASSWORD == "your-app-password":
+                                st.error("❌ Email configuration not set up. Please configure SENDER_EMAIL and SENDER_APP_PASSWORD environment variables.")
+                                st.info("💡 **Setup Instructions:**\n1. Set up Gmail App Password in your Google Account\n2. Set environment variables: SENDER_EMAIL and SENDER_APP_PASSWORD")
+                            else:
+                                with st.spinner("Sending email... Please wait."):
+                                    success, message = send_qr_email(
+                                        recipient_email,
+                                        st.session_state.sharable_qr_pkg,
+                                        st.session_state.sharable_link_pkg,
+                                        package_filename
+                                    )
+                                
+                                if success:
+                                    st.markdown(f'<div class="success-message">✅ {message}<br>📧 Email sent to: <strong>{recipient_email}</strong></div>', unsafe_allow_html=True)
+                                    # Optional: Clear the email input after successful send
+                                else:
+                                    st.markdown(f'<div class="error-message">❌ {message}</div>', unsafe_allow_html=True)
+                    
+                    st.markdown("</div>", unsafe_allow_html=True)
+                    
             else:
-                st.info("Upload PDF, TXT, or DOCX documents for package download.")
+                st.info("Upload PDF, TXT, or DOCX documents for package download and sharing.")
+
+    st.markdown('---\n<div style="text-align: center; color: #666;"><p>Smart Document Assistant | Built with Streamlit & Custom AI Models</p></div>', unsafe_allow_html=True)
